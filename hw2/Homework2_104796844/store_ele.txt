@@ -1,0 +1,48 @@
+//Homework2 Feilan Wang 104796844
+
+A.
+
+Formula 3.1 states that 
+	Location of A[i][j] = Xd + L(C*i+j)
+	where Xd is the base address of the A
+	      L is the size of the data type in bytes
+	      C is the number of rows
+	      i is the row number of the element
+	      j is the col number of the element
+
+We can break down A[R][S][T] into two dimensional array.
+Location of A[i][j][k] = Xd + L((S*T)*i+T*j+k)
+
+B.
+
+Given i at %ebp+8,
+      j at %ebp+12,
+      k at %ebp+16,
+      dest at %ebp+20
+
+movl	12(%ebp),	%edx	//get the value of j and copy into register edx
+leal	(%edx,%edx,4),	%eax	//j*5 and stored the result in register eax
+leal	(%edx,%eax,2),	%eax	//5j*2+j=11*j stored in register eax
+imull	$99,  8(%ebp),  %edx	//99*i and stored the result in register edx
+addl	%edx,		%eax	//(99*i)+(11*j) stored in register eax
+addl	16(%ebp),	%eax	//k+(99*i)+(11*j) stored in register eax
+movl	A(,%eax,4),	%edx	//A+4*(k+99*i+11*j) stored in register edx
+movl	20(%ebp),	%eax	//store dest(pointer) in register eax
+movl	%edx,		(%eax)	//move A+4*(k+99*i+11*j) to the address in register eax
+movl	$1980		%eax	//store 1980 into register eax (for return)
+
+1980 is the return value sizeof(A)
+
+From part A:
+address = Xd + L((S*T)*i+T*j+k)
+
+Compare to what we get from line 9
+A = Xd
+L = 4
+T = 11
+S * T = 99 ==> S = 9
+
+And we know the array size is 1980
+4(R*99) = 1980 ==> R = 5
+
+Therefore, R = 5, S = 9, T = 11.

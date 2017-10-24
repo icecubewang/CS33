@@ -1,0 +1,68 @@
+CS33 HW3
+Feilan Wang
+104796844
+
+Q3.68
+
+Question:
+
+In the following code, A and B are constants defined with #define:
+
+typedef struct {
+		int x[A][B];	//Unknown contants A and B
+		long y;
+} str1;
+
+typedef struct {
+	char array[B];
+	int t;
+	short s[A];
+	long u;
+} str2;
+
+void setVal(str1 *p, str2 *q) {
+	long v1 = q->t;
+	long v2 = q->u;
+	p->y = v1 + v2;
+}
+
+GCC generates the following code for the body of setVal:
+
+void setVal(str1 *p, str2 *q) 
+p in %rdi, q in %rsi
+setVal:
+	movslq	8(%rsi),	%rax		//get t (t is at 8 offset from *q)
+	addq	32(%rsi),	%rax		//add u to t and store in %rax
+	movq 	%rax,		184(%rdi)	//move result to p->y
+	ret
+
+What are the values of A and B? (The solution is unique)
+
+
+Answer:
+=====================================================
+|arrB| t |     s[A]       |           u             |
+=====================================================
+0    8   12               32                       64
+
+From the first line of GCC generated code,
+we know that t's address starts at the 8th bit. 
+t is a 4 bytes int, therefore, array[B] must end between 4 and 8. 
+4<=B<=8
+
+From the second line of GCC generated code,
+we know that u's address starts at the 32th bit.
+u is a 4 bytes long, therefore, s[A] must end between 28 and 32.
+s[A] starts at 12 and ends at 28 to 32. 
+Since elements in A are 2 bytes short,
+7<=A<=10
+
+From the third line of GCC generated code,
+we know that x[A][B] int array takes up 180 to 184 bytes. 
+180 <= 4 * A * B <= 184
+45 <= A * B <= 46
+
+By making a multiplication table of (4 to 8) * (7 to 10),
+the only possible answer is:
+A = 9
+B = 5

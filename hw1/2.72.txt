@@ -1,0 +1,6 @@
+A. sizeof() returns size_t which is  an unsigned int.
+   When doing addition with int maxbytes, the result is unsigned. 
+   So it will always be >= 0.
+   So the condition is always true.
+
+B. if (maxbytes - (int)sizeof(val) >= 0)

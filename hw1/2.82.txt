@@ -1,0 +1,45 @@
+A. FALSE 
+   Counter-example:
+   if x == TMin,
+   x < y for any y = random() != x.
+   but -x == TMin,
+   -x = x < y
+   therefore, in this case, (x<y) == (-x>-y) yields 0.
+
+B. TRUE
+   Right shift <<4 means multiply by 2^4 = 16.
+   ((x+y)<<4) is equivalent to (x+y)*16
+   So LHS == (16+1)*y + (16-1)*x == 17*y+15*x == RHS.
+
+C. TRUE
+   LHS == ~x+~y+1 == ~x-y ~x+1-y-1 == -x-y-1 == -(x+y)-1 == ~(x+y)+1-1 == ~(x+y) == RHS.
+
+D. TRUE
+   Think in terms of bit operation:
+   ux-uy is equivalent to ux + 2^32 - uy.
+   -(unsigned)(y-x) is equivalent to 2^32 - (unsigned)(y-x) == 2^32 - (uy-ux) == 2^32 +ux -uy, which is the same as LHS.
+   casting (y-x) from signed to unsigned does not change the bits but the interpretation of the bits.
+
+E. TRUE
+   ((x>>2)<<2) is equivalent to changing the last two bits of x to 00. 
+   if the last two bits of x is 00,
+   then ((x>>2)<<2) = x
+   else 
+   ((x>>2)<<2) < x 
+   Therefore, the statement is always true.
+
+F. TRUE
+   -1<<31 is equivalent to 10000000
+   if x >= 0, ux & (-1<<31) is equivalent to 00000000
+   RHS is performing a logical right shift on ux
+   Since x is positive, LHS is also performing a logical shift.
+   Therefore, LHS == RHS.
+   else if x < 0, ux & (-1<<31) is equivalent to 10000000
+   RHS is performing an arithmetic shift on ux
+   Since x is negative, LHS is also performing an arithmetic shift.
+   Therefore, LHS == RHS.
+
+G. FALSE
+   The statement only holds for positive x. 
+   For most negative x, eg: -2332, 
+   the LHS != RHS.
