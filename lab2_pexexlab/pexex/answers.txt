@@ -1,0 +1,136 @@
+CS33-LAB2
+answers.txt
+Feilan Wang
+104796844
+
+1.	
+Explain why the instructions in the trace did not produce the correct mathematical result. Which instructions caused the problem, exactly?
+
+Answer:
+
+From wolframalpha calculator, 
+(1250284240 * -1844255039) = -2305843009802285360 (decimal)
+						   = DFFFFFFFDCEACED0 (hexadecimal)
+But the result given by emacs = 2305843008625102544 (decimal)
+							  = 1FFFFFFFDCEACED0 (hexadecimal)
+
+Note: D(1101) vs 1(0001)
+
+Looking at trace.tr file,
+at line 74
+544e50	49 0f af fc	imul   %r12,%rdi    rdi=dfffffffdceaced0
+and line 76
+544e57	49 89 fc	mov    %rdi,%r12    r12=dfffffffdceaced0
+
+The value calculated by imul instruction is still correct.
+
+But at line 82
+544dfc	4a 8d 04 a5 02 00 00 00	lea    0x2(,%r12,4),%rax  rax=7fffffff73ab3b42
+
+In this step, the result undergoes left shift by 2 and addition of 2 and stored into rax. 
+So the value in rax is 7fffffff73ab3b42 (squeeze out the left most two 1s ==> overflow).
+
+In the later part under function eval_sub, this value undergoes arithmetic right shift, trying to restore the value, however, the leading 0 will fill up the left two bits with 0s, instead of 1s. 
+
+
+
+2.
+Explain why the shell command emacs -Q -batch -eval '(print most-negative-fixnum)' outputs -2305843009213693952. Where did the number come from? Explain in terms of the Emacs source code.
+
+Answer:
+
+Firstly, open emacs. 
+	$emacs
+Secondly, use help function.
+	$C-h
+followed by
+	$?
+This will prompt a few oftions.
+Choose the "variable" option.
+	$v
+Then, type in the variable name.
+	$most-negative-fixnum
+The following information is shown:
+
+"""
+most-negative-fixnum is a variable defined in `C source code'.
+Its value is -2305843009213693952
+
+Documentation:
+The smallest value that is representable in a Lisp integer.
+"""
+
+The corresponding haxedecimal number for -2305843009213693952 is E000000000000000.
+Note: E(1110)
+Any number that's more negative than E000000000000000 will not generate the same number after left shift by 2 followed by arithmetic right shift by 2, because in order to achieve this, the three most significant bits must all be 1s. 
+Therefore, -2305843009213693952 is the most negative number in emacs. 
+
+
+3.
+Explain why the shell command emacs -Q -batch -eval '(print (* most-positive-fixnum most-positive-fixnum most-positive-fixnum most-positive-fixnum))' outputs only 1.
+
+Answer:
+
+Using the same approach above, we find out that most-positive-fixnum has decimal value 
+2305843009213693951, which is 0x1fffffffffffffff in hexadecimal.
+
+Using gdb debugger, set a break point at Ftimes, and use 'si' and 'info registers' trace through the process. 
+I find out that after multiplied most-positive-fixnum with itself by two times,
+the result after truncating is 0xc000000000000001. 
+Then, the result is and with 0x3fffffffffffffff (INTMASK) in the following step
+=> 0x000000000053ef0e <arith_driver+558>:	4c 21 d5	and    %r10,%rbp
+which gives 0x0000000000000001.
+
+
+4.
+The Emacs executable was compiled with GCC's -O2 option. Suppose it had also been compiled with -fwrapv. Explain any problems Emacs would run into, or if there would not be a problem explain why not.
+
+Answer:
+
+There would not be a problem because -fwrapv is enabled at optimization level O2 and above. 
+It will not affect performance. 
+
+
+
+5.
+There is a recently-discovered security vulnerability in Emacs 25.2, which you can exercise by running emacs -Q -batch -eval '(print (format-time-string "%Y-%m-%d %H:%M:%S %Z" nil (concat (make-string 1000 ?X) "0")))'. Briefly describe the bug's low-level manifestation by crashing Emacs, using GDB's backtrace command, and following up with any other GDB commands that you think might be of interest.
+
+Answer:
+
+Try to run the command in gdb:
+
+	$gdb ~eggert/bin64/bin/emacs-25.2
+	(gdb)r -Q -batch -eval '(print (format-time-string "%Y-%m-%d %H:%M:%S %Z" nil (concat (make-string 1000 ?X) "0")))'
+
+The following error message is printed:
+
+	Thread 1 "emacs-25.2" received signal SIGSEGV, Segmentation fault.
+	0x00007ffff16be55b in __strcpy_sse2_unaligned () from /lib64/libc.so.6
+
+Use backtrace to print out the backtrace of the entire stack.
+
+	(gdb) bt
+	(gdb) up
+
+Outputs:
+	#1  0x0000000000553272 in emacs_setenv_TZ (
+    	tzstring=0x1485429 'X' <repeats 135 times>, "T", 'X' <repeats 64 times>...) at editfns.c:2428
+	2428	      strcpy (tzval + tzeqlen, tzstring);
+
+	(gdb) info f
+	(gdb) break editfns.c:2428
+
+Run the program again.
+
+	(gdb) 
+	0x00000000004153fb in strcpy@plt ()
+	=> 0x00000000004153fb <strcpy@plt+11>:	e9 10 ee ff ff	jmpq   0x414210
+	(gdb) 
+	0x0000000000414210 in ?? ()
+	=> 0x0000000000414210:	ff 35 f2 0d 42 00	pushq  0x420df2(%rip)        # 0x835008
+	(gdb) 
+	0x0000000000414216 in ?? ()
+	=> 0x0000000000414216:	ff 25 f4 0d 42 00	jmpq   *0x420df4(%rip)        # 0x835010
+	(gdb) 
+
+This is probably what goes wrong. When strcpy is trying to jump, an invalid address is given. 

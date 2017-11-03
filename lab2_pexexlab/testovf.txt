@@ -1,0 +1,141 @@
+CS33-LAB2
+pexexlab.txt
+Feilan Wang
+104796844
+
+Firstly, note that 9223372036854775807 is the max value for long/type __int64.
+
+|=========================================|
+|	$gcc -O2 -S testovf.c -o testovf_o2   |
+|=========================================|
+
+	.file	"testovf.c"
+	.text
+	.p2align 4,,15
+	.globl	testovf
+	.type	testovf, @function
+testovf:
+.LFB0:
+	.cfi_startproc
+	xorl	%eax, %eax
+	ret
+	.cfi_endproc
+.LFE0:
+	.size	testovf, .-testovf
+	.ident	"GCC: (GNU) 7.2.0"
+	.section	.note.GNU-stack,"",@progbits
+
+
+The compiler directly set register rax to 0 by "or" eax with itself,
+without doing any addition or comparison. 
+This shows that at -O2 level of optimization, the compiler is able to 
+tell that there will be integer overflow, 
+and straight away return 0 (false). 
+
+
+|========================================================|
+|	$gcc -O2 -fwrapv -S testovf.c -o testovf_o2_fwrapv	 |
+|========================================================|
+
+	.file	"testovf.c"
+	.text
+	.p2align 4,,15
+	.globl	testovf
+	.type	testovf, @function
+testovf:
+.LFB0:
+	.cfi_startproc
+	movabsq	$9223372036854775807, %rax
+	addq	%rdi, %rax
+	cmpq	%rdi, %rax
+	setl	%al
+	ret
+	.cfi_endproc
+.LFE0:
+	.size	testovf, .-testovf
+	.ident	"GCC: (GNU) 7.2.0"
+	.section	.note.GNU-stack,"",@progbits
+
+
+movabsq is moving a quad word of immediate data to register. 
+The value of n is stored in register rdi.
+n in rdi is added to the immediate value in rax and the result is stored in rax.
+Then, n is compared with the result of addition,
+if less, set al to 1, else, set it to 0.
+With -fwrapv, the compiler always wrap up when there's integer overflow and 
+do not give any warnings. 
+
+
+|========================================================================|
+|	$gcc -O2 -fsanitize=undefined -S testovf.c -o testovf_o2_fsanitize	 |
+|========================================================================|
+
+	.file	"testovf.c"
+	.text
+	.p2align 4,,15
+	.globl	testovf
+	.type	testovf, @function
+testovf:
+.LFB0:
+	.cfi_startproc
+	pushq	%rbp
+	.cfi_def_cfa_offset 16
+	.cfi_offset 6, -16
+	pushq	%rbx
+	.cfi_def_cfa_offset 24
+	.cfi_offset 3, -24
+	movabsq	$9223372036854775807, %rdx
+	movq	%rdi, %rbp
+	movq	%rdi, %rbx
+	subq	$8, %rsp
+	.cfi_def_cfa_offset 32
+	addq	%rdx, %rbp
+	jo	.L6
+.L2:
+	cmpq	%rbx, %rbp
+	setl	%al
+	addq	$8, %rsp
+	.cfi_remember_state
+	.cfi_def_cfa_offset 24
+	popq	%rbx
+	.cfi_def_cfa_offset 16
+	popq	%rbp
+	.cfi_def_cfa_offset 8
+	ret
+.L6:
+	.cfi_restore_state
+	movq	%rdi, %rsi
+	movl	$.Lubsan_data0, %edi
+	call	__ubsan_handle_add_overflow		//line 109 
+	jmp	.L2
+	.cfi_endproc
+.LFE0:
+	.size	testovf, .-testovf
+	.section	.rodata.str1.1,"aMS",@progbits,1
+.LC0:
+	.string	"testovf.c"
+	.data
+	.align 16
+	.type	.Lubsan_data0, @object
+	.size	.Lubsan_data0, 24
+.Lubsan_data0:
+	.quad	.LC0
+	.long	4
+	.long	12
+	.quad	.Lubsan_type0
+	.align 2
+	.type	.Lubsan_type0, @object
+	.size	.Lubsan_type0, 15
+.Lubsan_type0:
+	.value	0
+	.value	13
+	.string	"'long int'"
+	.ident	"GCC: (GNU) 7.2.0"
+	.section	.note.GNU-stack,"",@progbits
+
+
+Notice that at line 109 of this file, the program calls another function
+named __usban_handle_add_overflow that helps to handle integer overflow. 
+This function will only be called when there's overflow during addition, 
+as indicated by jo .L6. If there's no overflow, the program will fall through
+and do comparison and set %al. 

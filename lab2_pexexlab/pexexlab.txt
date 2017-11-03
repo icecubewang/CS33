@@ -1,0 +1,89 @@
+CS33 - LAB2
+Feilan Wang
+104796844
+
+Gather Instruction Traces
+
+1.	Change the PATH to /usr/local/cs/bin:$PATH
+	
+	$PATH=/usr/local/cs/bin:$PATH
+
+	This changes the path of executable file.
+
+
+2.	Use gdb to debug emacs-25.2
+
+	$gdb ~eggert/bin64/bin/emacs-25.2
+
+
+3.	Set a breakpoint at function Ftimes
+
+	(gdb) break Ftimes
+
+	so that the program will stop at function Ftimes and wait for further instructions.
+
+
+4.	Set disassemble-next-line on
+
+	(gdb) set disassemble-next-line on
+
+	This command enables gdb to print out the assembly code at each breakpoint.
+
+
+5.	Enable logging
+
+	(gdb) set logging on
+
+	This enables all the output lines during debugging session to be saved in gdb.txt file in the current working directory.
+
+*5. What didn't work:
+	At first, I was at professor Eggert's directory, and I wasn't able to set logging on.
+	I can only set loggin on after I am in my own directory. 
+
+
+6.	Compile
+
+	(gdb) r -Q -batch -eval '(print (* 1250284240 -1844255039))'
+
+	This runs the program with given command, and stop at the first breakpoint
+
+
+7.	Print out informations about registers
+
+	(gdb) info registers
+
+	This prints out the values of each registers. 
+	This allows us to determine which registers are modified after which steps. 
+
+
+8.	Step into the next line
+
+	(gdb) si
+
+
+9.	Repeat steps 7 and 8 until finishing the function Ftimes.
+	Function Ftimes is finished when stack pointer goes back to original address when the function is called.
+
+
+-------------------------------------------------------------------------------
+
+Examine Integer Overflow Handling
+
+1.	Change the path.
+
+	$PATH=/usr/local/cs/bin:PATH
+
+*1. What didn't work:
+	At first, I didn't change the path, and I get error message. 
+
+2.	Use the following command to generate the three assembly codes respectively.
+
+	$gcc -O2 -S testovf.c -o testovf_o2
+	$gcc -O2 -fwrapv -S testovf.c -o testovf_o2_fwrapv
+	$gcc -O2 -fsanitize=undefined -S testovf.c -o testovf_o2_fsanitize
+
+*2. What didn't work:
+	At first, I compile the program without -S flag, and I get bunch of unreadable code.
+
+3.	Compare the c code with assembly code to figure out what the compiler is doing.
+	I was not familar with -fsanitize=undefined, so I searched online and found it under UndefinedBehaviorSanitizer. 
