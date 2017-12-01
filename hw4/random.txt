@@ -1,0 +1,68 @@
+CS33 - HW4
+random.txt
+Feilan Wang
+104796844
+
+Question 2.89:
+In your answers, assume -fwrapv, and explain which of your answers require this assumption and why. 
+
+/* Create some arbitrary values */
+int x = random();
+int y = random();
+int z = random();
+/* convert to double */
+double dx = (double) x;
+double dy = (double) y;
+double dz = (double) z;
+
+For each of the following C expressions, you are to indicate whether or not the expression always yields 1.
+
+A. (float) x == (float) dx
+B. dx - dy == (double) (x - y)
+C. (dx + dy) + dz == dx + (dy + dz)
+D. (dx * dy) * dz == dx * (dy * dz)
+E. dx / dx == dz / dz
+
+Answer:
+
+A.	Always yields 1.
+	x is a randomly generated 32-bits int.
+	dx is casted from int x to double. Exact value of x is preserved since double has both greater range and precision. 
+	This casting is done by appending 32-bits of 0s in front.
+	So the lower 32-bits of x and dx are the same.
+	When casting to double, dx will not have overflow problem since its upper 32-bits are 0s.
+	Even if there's rounding, both x and dx will round in the same way because their lower 32-bits are the same.
+	Therefore, this statement always evaluates to 1. 
+
+B.	Can yield 0.
+	Counter-example: 
+	x = INT_MAX, y = INT_MIN. 
+	(x - y) will result in integer overflow.
+	So we need to assume -fwrapv, so that the integer wraps around.
+	This wrap around value is then casted to double. 
+	On the other hand, (dx - dy) will not encounter overflow problem because double has greater range. 
+	Hence, its value will be different from that of right hand side. 
+	Therefore, this statement can yield 0. 
+
+C.	Always yield 1.
+	dx, dy and dz are all casted from int.
+	So, they contain whole numbers that are stored in double. 
+	Hence, there will not be rounding errors as rounding will not occur. 
+	Also, there will not be overflow problems as int has smaller range than double and the operation here is addition. 
+	Therefore, the order in which these three numbers are added will not affect the result generated. 
+	Therefore, this statment always evaluates to 1.
+
+D.	Can yield 0.
+	Counter-example:
+	x = 1e20, y = 1e20, z = 1e-20.
+	In this case, (dx * dy) * dz = infinity.
+	But, dx * (dy * dz) = 1e20. 
+	Because of possiblity of overflow, multiplcation of floating points is not associative. 
+	Therefore, this statement can yield 0.
+
+E.	Can yield 0. 
+	Counter-example:
+	x = 0, y = 1.
+	In this case, dx / dx = NaN.
+	But dy / dy = 1.
+	Therefore, this statement can yield 0.

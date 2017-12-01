@@ -1,0 +1,15 @@
+CS33 - HW5
+answer.txt
+Feilan Wang
+104796844
+
+12.17
+A. In line 10, the main thread exits. It didn't wait for other thread.
+   All other threads are terminated.
+   So nothing will be printed.
+
+B. Replace exit(0) with Pthread_exit(0);
+
+12.25
+The prethreaded concurrent echo server is safe because of mutex.
+However, it is not reentrant because they share the same mutex. 
