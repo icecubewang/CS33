@@ -1,0 +1,126 @@
+CS33 - OpenMP Lab
+openmplab.txt
+Feilan Wang
+104796844
+
+1.	Get the openmplab directory. 
+	a.	I download the openmplab.tgz file from CCLE and use Cyberduck to move it onto SEASnet server.
+	b.	Unzip it. 
+		$ tar -xzvf openmplab.tgz
+	c.	Enter into the directory.
+		$ cd openmplab
+
+2.	Try to use GPROF by following the instructions on discussion slide.
+	a.	Compile with GPROF=1.
+		$ make seq GPROF=1
+		>> 
+gcc -o seq  -O2 -pg filter.c main.c func.c util.c -lm
+
+	b.	Execute the executable (This produce gmon.out).
+		$ ./seq
+		>> 
+FUNC TIME : 0.577587
+TOTAL TIME : 2.415730
+
+	c.	Run gprof with the executable as the argument.
+		$ gprof seq | less
+		The command gprof seq normally prints out lots of text. The “|less” redirects
+		the output as input into the “less” command, which allows you to read it more
+		easily.
+		>> 
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls  ms/call  ms/call  name    
+ 61.02      0.39     0.39       15    26.03    28.06  func1
+ 25.03      0.55     0.16  5177344     0.00     0.00  rand2
+  4.69      0.58     0.03       15     2.00     2.00  func2
+  3.13      0.60     0.02                             sequence
+  1.56      0.61     0.01   491520     0.00     0.00  findIndexBin
+  1.56      0.62     0.01       15     0.67     1.34  func5
+  1.56      0.63     0.01        1    10.01   139.80  addSeed
+  1.56      0.64     0.01        1    10.01    10.01  imdilateDisk
+  0.00      0.64     0.00   983042     0.00     0.00  round
+  0.00      0.64     0.00       16     0.00     0.00  dilateMatrix
+  0.00      0.64     0.00       15     0.00     0.00  func3
+  0.00      0.64     0.00       15     0.00     0.00  func4
+  0.00      0.64     0.00       15     0.00     0.00  rand1
+  0.00      0.64     0.00        2     0.00     0.00  get_time
+  0.00      0.64     0.00        1     0.00     0.00  elapsed_time
+  0.00      0.64     0.00        1     0.00     0.00  fillMatrix
+  0.00      0.64     0.00        1     0.00     0.00  func0
+  0.00      0.64     0.00        1     0.00     0.00  getNeighbors
+
+  		From the data, I notice that func1 takes the most time. 
+  		So, in order to improve performance, I can focus on func1 first. 
+
+  	d.	Quit less with q.
+  		$ q
+
+3.	Improve func1 using omp with help from (http://www.openmp.org/wp-content/uploads/Intro_To_OpenMP_Mattson.pdf). 
+	
+	a.	In func1, there are several for loops. 
+		Apply #progma omp parallel for firstprivate() private() to each of the for loop.
+		Then varies the NUM_THREADS from 2 and keeps increase until there's no further improvement in time. 
+		I find out that when NUM_THREADS is around 26, the time is minimized.
+
+	b.	Run to see the result. 
+		$ make clean
+		$ make omp
+		$ ./omp
+		>>
+FUNC TIME : 0.088001
+TOTAL TIME : 1.884171
+
+	c.	Check for correct output. 
+		$ make check
+		>>
+gcc -o omp  -O3 -fopenmp filter.c main.c func.c util.c -lm
+cp omp filter
+./filter
+FUNC TIME : 0.102069
+TOTAL TIME : 1.947393
+diff --brief correct.txt output.txt
+
+	d.	Check for memory leak.
+		$ make omp MTRACE=1
+		$ ./omp
+		>>
+FUNC TIME : 0.094996
+TOTAL TIME : 1.932122
+
+		$ make checkmem
+		>>
+mtrace filter mtrace.out || true
+
+Memory not freed:
+-----------------
+           Address     Size     Caller
+0x0000000002fbd0d0   0x12c0  at 0x7f7f2d32f869
+0x0000000002fbe3a0     0xc0  at 0x7f7f2d32f869
+0x0000000002fbe470     0x88  at 0x7f7f2d32f8b9
+0x0000000002fbe500    0x240  at 0x7f7f2d85ff45
+0x0000000002fbe750    0x240  at 0x7f7f2d85ff45
+0x0000000002fbe9a0    0x240  at 0x7f7f2d85ff45
+0x0000000002fbebf0    0x240  at 0x7f7f2d85ff45
+0x0000000002fbee40    0x240  at 0x7f7f2d85ff45
+0x0000000002fbf090    0x240  at 0x7f7f2d85ff45
+0x0000000002fbf2e0    0x240  at 0x7f7f2d85ff45
+0x0000000002fbf530    0x240  at 0x7f7f2d85ff45
+0x0000000002fbf780    0x240  at 0x7f7f2d85ff45
+0x0000000002fbf9d0    0x240  at 0x7f7f2d85ff45
+0x0000000002fbfc20    0x240  at 0x7f7f2d85ff45
+0x0000000002fbfe70    0x240  at 0x7f7f2d85ff45
+0x0000000002fc00c0    0x240  at 0x7f7f2d85ff45
+0x0000000002fc0310    0x240  at 0x7f7f2d85ff45
+0x0000000002fc0560    0x240  at 0x7f7f2d85ff45
+
+		On Piazza, It says that these are false alarms, so it is fine. 
+
+4.	Then, I tried to improve func2. 
+	However, after I modify the code, time taken stays the same.
+
+5.	Calculate speed up.
+	0.577587/0.088001 = 6.56x > 3.5x
+
